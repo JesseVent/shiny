@@ -1482,6 +1482,7 @@ downloadLink <- function(outputId, label="Download", class=NULL, ...) {
 }
 
 
+
 #' Create an icon
 #'
 #' Create an icon for use within a page. Icons can appear on their own, inside
@@ -1498,9 +1499,9 @@ downloadLink <- function(outputId, label="Download", class=NULL, ...) {
 #'   \href{http://fontawesome.io/examples/}{usage examples} for details on
 #'   supported styles).
 #' @param lib Icon library to use ("font-awesome" or "glyphicon")
-#'
+#' @param style Font-awesomes solid, regular, brand or light style ("fas"="solid","far"="regular","fab"="brand","fal"="light")
 #' @return An icon element
-#'
+#' @importFrom utils read.csv
 #' @seealso For lists of available icons, see
 #'   \href{http://fontawesome.io/icons/}{http://fontawesome.io/icons/} and
 #'   \href{http://getbootstrap.com/components/#glyphicons}{http://getbootstrap.com/components/#glyphicons}.
@@ -1520,7 +1521,7 @@ downloadLink <- function(outputId, label="Download", class=NULL, ...) {
 #'   tabPanel("Table", icon = icon("table"))
 #' )
 #' @export
-icon <- function(name, class = NULL, lib = "font-awesome") {
+icon <- function(name, class = NULL, lib = "font-awesome", style="fas") {
   prefixes <- list(
     "font-awesome" = "fa",
     "glyphicon" = "glyphicon"
@@ -1533,26 +1534,40 @@ icon <- function(name, class = NULL, lib = "font-awesome") {
          paste0('"', names(prefixes), '"', collapse = ", "))
   }
 
+  # Add fallback support for 4.7.0 by checking for legacy icons names and replacing with 5.2.0 names
+  if ( prefix == "fa" && !is.null(name)) {
+    mapfile <- system.file("www","shared","font-awesome", "fa-mapping.csv", package = "shiny")
+    fa_lookup  <- read.csv(mapfile, stringsAsFactors = FALSE)
+    match      <- match(name, fa_lookup$v4_name)
+    prefix_tag <- NA
+    if (!is.na(match)) {
+      match      <- as.numeric(match)
+      name       <- fa_lookup$v5_name[match]
+      prefix_tag <- fa_lookup$prefix[match]
+    }
+    if (is.na(prefix_tag)) prefix_tag <- style
+  }
+
   # build the icon class (allow name to be null so that other functions
   # e.g. buildTabset can pass an explicit class value)
   iconClass <- ""
-  if (!is.null(name))
-    iconClass <- paste0(prefix, " ", prefix, "-", name)
-  if (!is.null(class))
-    iconClass <- paste(iconClass, class)
+  if (!is.null(name)) {
+    # support for glyphicon
+    if(prefix != "fa") iconClass <- paste0(prefix, " ", prefix, "-", name)
+    # new font-awesome format
+    if(prefix == "fa") iconClass <- paste0(prefix_tag, " ", prefix, "-", name)
+  }
+  if (!is.null(class)) iconClass <- paste(iconClass, class)
 
   iconTag <- tags$i(class = iconClass)
 
   # font-awesome needs an additional dependency (glyphicon is in bootstrap)
   if (lib == "font-awesome") {
-    htmlDependencies(iconTag) <- htmlDependency(
-      "font-awesome", "4.7.0", c(href="shared/font-awesome"),
-      stylesheet = "css/font-awesome.min.css"
-    )
+    htmltools::htmlDependency("font-awesome", "5.2.0", c(href="shared/font-awesome"), script = "js/all.js")
   }
-
   iconTag
 }
+
 
 # Helper funtion to extract the class from an icon
 iconClass <- function(icon) {
